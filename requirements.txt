@@ -1,0 +1,4 @@
+fastapi
+modal-client
+uvicorn
+re
