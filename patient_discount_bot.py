@@ -1,8 +1,13 @@
 from flask import Flask, request, jsonify
 import re
+from transformers import pipeline
 
 # Definir el umbral y criterios para calificar para el descuento
 INCOME_THRESHOLD = 2000  # Umbral de ingresos en soles
+
+# Inicializar un pipeline de generación de texto de Hugging Face
+# Puedes cambiar "gpt-2" por otros modelos más avanzados de Hugging Face, como "gpt-neo" o "gpt-3.5" si tienes acceso.
+text_generator = pipeline('text-generation', model='gpt2')
 
 # Función para analizar el mensaje y extraer datos clave
 def analyze_message(patient_message: str):
@@ -57,11 +62,6 @@ def bot_response():
     data = request.json
     patient_message = data.get("message", "")
 
-    if re.search(r"\b(hola|buenos días|buenas tardes|buenas noches)\b", patient_message, re.IGNORECASE):
-        return jsonify({
-            "response": "Buenos días estimado(a) paciente, te saludo MiguelonBot. Coméntame más a detalle tu situación económica y social."
-        })
-
     # Analizar el mensaje
     patient_data = analyze_message(patient_message)
     name = patient_data.get("name", "Paciente")
@@ -70,23 +70,28 @@ def bot_response():
     mental_health_condition = patient_data.get("mental_health_condition", "")
     employment_status = patient_data.get("employment_status", "")
 
+    # Generar respuesta personalizada según la información del paciente
     if income is None:
-        return jsonify({"response": f"{name}, no pudimos determinar tus ingresos. Por favor, proporciona más información."})
-
-    qualifies = False
-    if income < INCOME_THRESHOLD:
-        qualifies = True
-    if mental_health_condition in ["depresión", "ansiedad", "estrés postraumático"]:
-        qualifies = True
-    if employment_status in ["unemployed", "part-time"]:
-        qualifies = True
-
-    if qualifies:
-        response_text = f"{name} {last_name}, calificas para un 90% de descuento en sesiones psicológicas remotas."
+        input_prompt = f"{name}, no pudimos determinar tus ingresos. Proporciona más información sobre tus ingresos."
     else:
-        response_text = f"{name} {last_name}, no calificas para el descuento."
+        qualifies = False
+        if income < INCOME_THRESHOLD:
+            qualifies = True
+        if mental_health_condition in ["depresión", "ansiedad", "estrés postraumático"]:
+            qualifies = True
+        if employment_status in ["unemployed", "part-time"]:
+            qualifies = True
 
-    return jsonify({"response": response_text})
+        if qualifies:
+            input_prompt = f"{name} {last_name}, calificas para un 90% de descuento en sesiones psicológicas remotas."
+        else:
+            input_prompt = f"{name} {last_name}, no calificas para el descuento. Por favor, contáctanos para más detalles."
+
+    # Usar el modelo de lenguaje para generar una respuesta
+    generated_response = text_generator(input_prompt, max_length=100, num_return_sequences=1)[0]['generated_text']
+
+    # Devolver la respuesta generada
+    return jsonify({"response": generated_response})
 
 if __name__ == "__main__":
     app.run(debug=True)
