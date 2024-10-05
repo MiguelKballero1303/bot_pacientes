@@ -2,12 +2,13 @@ from flask import Flask, request, jsonify
 import re
 from transformers import pipeline
 
-# Umbral de ingresos en soles
-INCOME_THRESHOLD = 2000  
+# Definir el umbral y criterios para calificar para el descuento
+INCOME_THRESHOLD = 2000  # Umbral de ingresos en soles
 
 # Inicializar el pipeline de generación de texto de Hugging Face con un modelo eficiente
-text_generator = pipeline('text-generation', model='distilgpt2', device=-1, batch_size=1)
+text_generator = pipeline('text-generation', model='distilgpt2', device=-1)  # Usa CPU
 
+# Función para analizar el mensaje y extraer datos clave
 def analyze_message(patient_message: str):
     income_match = re.search(r"ingreso.*?(\d+)", patient_message, re.IGNORECASE)
     income = int(income_match.group(1)) if income_match else None
@@ -47,18 +48,22 @@ def analyze_message(patient_message: str):
         "employment_status": employment_status,
     }
 
+# Inicializar Flask
 app = Flask(__name__)
 
 @app.route("/bot-response", methods=["POST"])
 def bot_response():
+    # Obtener el mensaje del paciente desde el request
     data = request.json
     patient_message = data.get("message", "")
 
+    # Saludo inicial
     initial_response = "¡Hola! Soy el asistente de salud mental. ¿Cómo puedo ayudarte hoy? Proporciona más información sobre tu situación."
 
     if not patient_message.strip():
         return jsonify({"response": initial_response})
 
+    # Analizar el mensaje
     patient_data = analyze_message(patient_message)
     name = patient_data.get("name", "Paciente")
     last_name = patient_data.get("last_name", "")
@@ -66,6 +71,7 @@ def bot_response():
     mental_health_condition = patient_data.get("mental_health_condition", "")
     employment_status = patient_data.get("employment_status", "")
 
+    # Generar respuesta personalizada según la información del paciente
     if income is None:
         input_prompt = f"{name}, no pudimos determinar tus ingresos. Proporciona más información sobre tus ingresos."
     else:
@@ -79,9 +85,10 @@ def bot_response():
             input_prompt = f"{name} {last_name}, no calificas para el descuento. Por favor, contáctanos para más detalles."
 
     try:
+        # Limitar la longitud de la entrada para evitar problemas de memoria
         input_prompt = input_prompt[:512]
         generated_response = text_generator(input_prompt, max_length=50, num_return_sequences=1, truncation=True)[0]['generated_text'].strip()
-        generated_response = generated_response.split(".")[0]
+        generated_response = generated_response.split(".")[0]  # Tomar solo el primer fragmento
     except Exception as e:
         return jsonify({"response": "Lo siento, ocurrió un error al generar la respuesta."})
 
