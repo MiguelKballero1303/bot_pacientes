@@ -6,9 +6,9 @@ import torch
 # Umbral de ingresos en soles
 INCOME_THRESHOLD = 2000  
 
-# Inicializar el pipeline de generación de texto con el modelo en CPU
+# Cargar el modelo cuantizado y pipeline de generación de texto
 device = torch.device("cpu")
-text_generator = pipeline('text-generation', model='distilgpt2', device=device, batch_size=1)
+text_generator = pipeline('text-generation', model='quantized_distilgpt2', device=device, batch_size=1)
 
 def analyze_message(patient_message: str):
     income_match = re.search(r"ingreso.*?(\d+)", patient_message, re.IGNORECASE)
