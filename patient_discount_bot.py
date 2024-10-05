@@ -6,7 +6,7 @@ from transformers import pipeline
 INCOME_THRESHOLD = 2000  # Umbral de ingresos en soles
 
 # Inicializar un pipeline de generación de texto de Hugging Face con un modelo más eficiente
-text_generator = pipeline('text-generation', model='distilgpt2')  # Modelo más ligero
+text_generator = pipeline('text-generation', model='distilgpt2', device=0)  # Usa GPU si está disponible
 
 # Función para analizar el mensaje y extraer datos clave
 def analyze_message(patient_message: str):
@@ -14,11 +14,7 @@ def analyze_message(patient_message: str):
     income = int(income_match.group(1)) if income_match else None
 
     mental_health_conditions = ["depresión", "ansiedad", "estrés postraumático"]
-    mental_health_condition = None
-    for condition in mental_health_conditions:
-        if re.search(condition, patient_message, re.IGNORECASE):
-            mental_health_condition = condition
-            break
+    mental_health_condition = next((condition for condition in mental_health_conditions if re.search(condition, patient_message, re.IGNORECASE)), None)
 
     employment_status = None
     if re.search(r"desemplead[oa]", patient_message, re.IGNORECASE):
@@ -73,24 +69,20 @@ def bot_response():
     if income is None:
         input_prompt = f"{name}, no pudimos determinar tus ingresos. Proporciona más información sobre tus ingresos."
     else:
-        qualifies = False
-        if income < INCOME_THRESHOLD:
-            qualifies = True
-        if mental_health_condition in ["depresión", "ansiedad", "estrés postraumático"]:
-            qualifies = True
-        if employment_status in ["unemployed", "part-time"]:
-            qualifies = True
+        qualifies = (income < INCOME_THRESHOLD or
+                     mental_health_condition in ["depresión", "ansiedad", "estrés postraumático"] or
+                     employment_status in ["unemployed", "part-time"])
 
         if qualifies:
             input_prompt = f"{name} {last_name}, calificas para un 90% de descuento en sesiones psicológicas remotas."
         else:
             input_prompt = f"{name} {last_name}, no calificas para el descuento. Por favor, contáctanos para más detalles."
 
-    # Usar el modelo de lenguaje para generar una respuesta con un límite más bajo de caracteres
-    generated_response = text_generator(input_prompt, max_length=50, num_return_sequences=1)[0]['generated_text']
+    # Usar el modelo de lenguaje para generar una respuesta
+    generated_response = text_generator(input_prompt, max_length=50, num_return_sequences=1)[0]['generated_text'].strip()
 
     # Devolver la respuesta generada
     return jsonify({"response": generated_response})
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=True)  # Asegúrate de que esté accesible desde cualquier IP
