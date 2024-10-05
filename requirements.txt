@@ -2,3 +2,4 @@ Flask
 gunicorn
 transformers
 torch
+flask-cors

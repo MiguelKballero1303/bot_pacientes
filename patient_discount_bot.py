@@ -6,7 +6,7 @@ from transformers import pipeline
 INCOME_THRESHOLD = 2000  # Umbral de ingresos en soles
 
 # Inicializar un pipeline de generación de texto de Hugging Face con un modelo más eficiente
-text_generator = pipeline('text-generation', model='distilgpt2', device=0)  # Usa GPU si está disponible
+text_generator = pipeline('text-generation', model='distilgpt2', device=-1)  # Usa CPU
 
 # Función para analizar el mensaje y extraer datos clave
 def analyze_message(patient_message: str):
@@ -57,6 +57,13 @@ def bot_response():
     data = request.json
     patient_message = data.get("message", "")
 
+    # Saludo inicial
+    initial_response = "¡Hola! Soy el asistente de salud mental. ¿Cómo puedo ayudarte hoy? Por favor, proporciona información sobre tu situación."
+
+    # Si el mensaje está vacío, retorna el saludo inicial
+    if not patient_message.strip():
+        return jsonify({"response": initial_response})
+
     # Analizar el mensaje
     patient_data = analyze_message(patient_message)
     name = patient_data.get("name", "Paciente")
@@ -79,7 +86,10 @@ def bot_response():
             input_prompt = f"{name} {last_name}, no calificas para el descuento. Por favor, contáctanos para más detalles."
 
     # Usar el modelo de lenguaje para generar una respuesta
-    generated_response = text_generator(input_prompt, max_length=50, num_return_sequences=1)[0]['generated_text'].strip()
+    generated_response = text_generator(input_prompt, max_length=50, num_return_sequences=1, truncation=True)[0]['generated_text'].strip()
+    
+    # Asegurarse de que la respuesta no contenga texto adicional no deseado
+    generated_response = generated_response.split(".")[0]  # Tomar solo el primer fragmento
 
     # Devolver la respuesta generada
     return jsonify({"response": generated_response})
