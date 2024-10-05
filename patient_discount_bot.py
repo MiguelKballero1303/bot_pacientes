@@ -5,7 +5,7 @@ from transformers import pipeline
 # Definir el umbral y criterios para calificar para el descuento
 INCOME_THRESHOLD = 2000  # Umbral de ingresos en soles
 
-# Inicializar un pipeline de generación de texto de Hugging Face con un modelo más eficiente
+# Inicializar el pipeline de generación de texto de Hugging Face con un modelo eficiente
 text_generator = pipeline('text-generation', model='distilgpt2', device=-1)  # Usa CPU
 
 # Función para analizar el mensaje y extraer datos clave
@@ -58,9 +58,8 @@ def bot_response():
     patient_message = data.get("message", "")
 
     # Saludo inicial
-    initial_response = "¡Hola! Soy el asistente de salud mental. ¿Cómo puedo ayudarte hoy? Por favor, proporciona información sobre tu situación."
+    initial_response = "¡Hola! Soy el asistente de salud mental. ¿Cómo puedo ayudarte hoy? Proporciona más información sobre tu situación."
 
-    # Si el mensaje está vacío, retorna el saludo inicial
     if not patient_message.strip():
         return jsonify({"response": initial_response})
 
@@ -85,18 +84,15 @@ def bot_response():
         else:
             input_prompt = f"{name} {last_name}, no calificas para el descuento. Por favor, contáctanos para más detalles."
 
-    # Usar el modelo de lenguaje para generar una respuesta
     try:
         # Limitar la longitud de la entrada para evitar problemas de memoria
-        input_prompt = input_prompt[:512]  # Limitar a 512 caracteres
+        input_prompt = input_prompt[:512]
         generated_response = text_generator(input_prompt, max_length=50, num_return_sequences=1, truncation=True)[0]['generated_text'].strip()
-        # Asegurarse de que la respuesta no contenga texto adicional no deseado
         generated_response = generated_response.split(".")[0]  # Tomar solo el primer fragmento
     except Exception as e:
         return jsonify({"response": "Lo siento, ocurrió un error al generar la respuesta."})
 
-    # Devolver la respuesta generada
     return jsonify({"response": generated_response})
 
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=5000, debug=True)  # Asegúrate de que esté accesible desde cualquier IP
+    app.run(host='0.0.0.0', port=5000, debug=True)
