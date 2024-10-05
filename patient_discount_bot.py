@@ -1,12 +1,14 @@
 from flask import Flask, request, jsonify
 import re
 from transformers import pipeline
+import torch
 
 # Umbral de ingresos en soles
 INCOME_THRESHOLD = 2000  
 
-# Inicializar el pipeline de generación de texto de Hugging Face con un modelo eficiente
-text_generator = pipeline('text-generation', model='distilgpt2', device=-1, batch_size=1)
+# Inicializar el pipeline de generación de texto con el modelo en CPU
+device = torch.device("cpu")
+text_generator = pipeline('text-generation', model='distilgpt2', device=device, batch_size=1)
 
 def analyze_message(patient_message: str):
     income_match = re.search(r"ingreso.*?(\d+)", patient_message, re.IGNORECASE)
@@ -76,9 +78,9 @@ def bot_response():
             input_prompt = f"{name} {last_name}, no calificas para el descuento. Por favor, contáctanos para más detalles."
 
     try:
-        input_prompt = input_prompt[:512]
+        input_prompt = input_prompt[:512]  # Limitar la longitud de entrada
         generated_response = text_generator(input_prompt, max_length=50, num_return_sequences=1, truncation=True)[0]['generated_text'].strip()
-        generated_response = generated_response.split(".")[0]
+        generated_response = generated_response.split(".")[0]  # Limitar la respuesta a una oración
     except Exception as e:
         return jsonify({"response": "Lo siento, ocurrió un error al generar la respuesta."})
 
