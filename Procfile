@@ -1,1 +1,1 @@
-web: gunicorn patient_discount_bot:app --timeout 120 --workers 2 --threads 2
+web: gunicorn --workers=2 --threads=2 patient_discount_bot:app
