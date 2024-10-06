@@ -7,7 +7,7 @@ import torch
 INCOME_THRESHOLD = 2000  
 
 # Cargar el modelo y pipeline de generación de texto
-device = "cuda" if torch.cuda.is_available() else "cpu"  # Cambia a "cuda" si tienes una GPU
+device = "cpu"  # Cambia a "cpu" para evitar problemas de memoria
 text_generator = pipeline('text-generation', model='datificate/gpt2-small-spanish', device=device, batch_size=1)
 
 def analyze_message(patient_message: str):
@@ -83,8 +83,3 @@ def bot_response():
         generated_response = generated_response.split(".")[0]  # Limitar la respuesta a una oración
     except Exception as e:
         return jsonify({"response": "Lo siento, ocurrió un error al generar la respuesta."})
-
-    return jsonify({"response": generated_response})
-
-if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=5000, debug=True)
