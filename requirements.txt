@@ -1,5 +1,5 @@
 Flask
 gunicorn
-transformers
-torch
+transformers==4.20.0  # Asegúrate de usar una versión compatible y ligera
+torch==1.11.0  # Verifica si una versión menor es suficiente para reducir tamaño
 flask-cors

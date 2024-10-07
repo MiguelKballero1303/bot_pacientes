@@ -6,9 +6,14 @@ import torch
 # Umbral de ingresos en soles
 INCOME_THRESHOLD = 2000  
 
-# Cargar el modelo y pipeline de generación de texto
-device = "cpu"  # Cambia a "cpu" para evitar problemas de memoria
-text_generator = pipeline('text-generation', model='datificate/gpt2-small-spanish', device=device, batch_size=1)
+# Cargar el modelo solo cuando sea necesario
+device = "cuda" if torch.cuda.is_available() else "cpu"  # Usa GPU si está disponible
+text_generator = None
+
+def load_text_generator():
+    global text_generator
+    if text_generator is None:
+        text_generator = pipeline('text-generation', model='datificate/gpt2-small-spanish', device=device, batch_size=1)
 
 def analyze_message(patient_message: str):
     income_match = re.search(r"ingreso.*?(\d+)", patient_message, re.IGNORECASE)
@@ -17,8 +22,11 @@ def analyze_message(patient_message: str):
     mental_health_conditions = ["depresión", "ansiedad", "estrés postraumático"]
     mental_health_condition = next((condition for condition in mental_health_conditions if re.search(condition, patient_message, re.IGNORECASE)), None)
 
-    employment_status = "unemployed" if re.search(r"desemplead[oa]", patient_message, re.IGNORECASE) else \
-                        "part-time" if re.search(r"medio tiempo|parcial", patient_message, re.IGNORECASE) else None
+    employment_status = None
+    if re.search(r"desemplead[oa]", patient_message, re.IGNORECASE):
+        employment_status = "unemployed"
+    elif re.search(r"medio tiempo|parcial", patient_message, re.IGNORECASE):
+        employment_status = "part-time"
 
     name_match = re.search(r"soy ([A-Za-z ]+)", patient_message, re.IGNORECASE)
     name = name_match.group(1).strip() if name_match else "Paciente"
@@ -79,7 +87,15 @@ def bot_response():
 
     try:
         input_prompt = input_prompt[:512]  # Limitar la longitud de entrada
+        load_text_generator()  # Cargar el modelo si aún no está cargado
         generated_response = text_generator(input_prompt, max_length=50, num_return_sequences=1, truncation=True)[0]['generated_text'].strip()
         generated_response = generated_response.split(".")[0]  # Limitar la respuesta a una oración
-    except Exception as e:
+    except torch.cuda.OutOfMemoryError:
+        return jsonify({"response": "Lo siento, el servidor tiene problemas de memoria. Intenta más tarde."})
+    except Exception:
         return jsonify({"response": "Lo siento, ocurrió un error al generar la respuesta."})
+
+    return jsonify({"response": generated_response})
+
+if __name__ == "__main__":
+    app.run(host='0.0.0.0', port=5000, debug=True)
